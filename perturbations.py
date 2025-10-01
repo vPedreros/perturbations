@@ -88,8 +88,8 @@ def phi(a, k, X, pars=cosmo_parameters):
     """
     delta_m, theta_m, delta_de, theta_de = X
     H = Hubble(a,pars=pars)
-    factor = -1.5* (a*pars['H0']/k)**2
-    matter_term = pars['Omega_m0'] * a**(-3) * (delta_m)# + 3*a*H/k**2 * theta_m)
+    factor = -1.5* (a*pars['H0']/c_kms/k)**2
+    matter_term = pars['Omega_m0'] * a**(-3) * (delta_m + 3*a*H/k**2 * theta_m)
     if pars['w0'] == -1 and pars['wa'] == 0:
         de_term = 0
     else:
@@ -106,7 +106,7 @@ def dphida(a, k, X, pars=cosmo_parameters):
     must also be provided.
     """
     delta_m, theta_m, delta_de, theta_de = X
-    factor = -1.5* pars['H0']/k**2/Hubble(a, pars)
+    factor = -1.5*pars['H0']/(c_kms*EHubble(a, pars)*k**2)
     matter_term = pars['Omega_m0'] * a**(-3)*theta_m
     if pars['w0'] == -1 and pars['wa'] == 0:
         de_term = 0
@@ -114,7 +114,7 @@ def dphida(a, k, X, pars=cosmo_parameters):
         print('not In LambdaCDM')
         de_term = pars['Omega_de0'] * a **(-3*(1+eff_w_de(a, pars=pars)))\
                     * theta_de*(1+w_de(a, pars=pars))
-    return 0#factor*(matter_term+de_term) - phi(a, k, X, pars=pars)/a
+    return factor*(matter_term+de_term) - phi(a, k, X, pars=pars)/a
 
 
 def rhs_pert(a, X, k, pars=cosmo_parameters):
@@ -130,7 +130,7 @@ def rhs_pert(a, X, k, pars=cosmo_parameters):
     delta_m, theta_m, delta_de, theta_de = X
 
     phi_pot = phi(a, k, X, pars=pars)
-    dphi_potda = dphida(a, k, X, pars=pars)
+    dphi_potda = 0#dphida(a, k, X, pars=pars)
     if pars['w0'] == -1 and pars['wa'] == 0:
         output = [-theta_m/(a**2 * H) + 3*dphi_potda,
                   -theta_m/a + k**2 * phi_pot/(a**2 * H),
