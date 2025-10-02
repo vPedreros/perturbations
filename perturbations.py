@@ -10,8 +10,11 @@ from astropy import constants as const
 # Set cosmological parameters
 # ===========================
 
+c_kms = const.c.to('km/s').value
+
 cosmo_parameters = {
-    'H0': 67.,
+    'H0 (km/s/Mpc)': 67.,
+    'H0 (1/Mpc)': 67. / c_kms ,
     'h' : .67,
     'Omega_c0': 0.25,
     'Omega_b0': 0.05,
@@ -23,7 +26,6 @@ cosmo_parameters = {
 }
 
 
-c_kms = const.c.to('km/s').value
 
 
 # ==================================
@@ -56,14 +58,19 @@ def EHubble(a, pars=cosmo_parameters):
     return np.sqrt(Omm*a**-3 + Omde*a**(-3*(1+eff_w_de(a, pars=pars))))
 
 
-def Hubble(a, pars=cosmo_parameters):
+def Hubble(a, pars=cosmo_parameters, units='1/Mpc'):
     """
-    Hubble parameter as a function of
-    the scale factor. Cosmological parameters must
-    be provided as a dictionary. Units are (1/Mpc).
+    Hubble parameter as a function of the scale factor.
+    Cosmological parameters must be provided as a dictionary.
+    You can choose units by setting the flag units to '1/Mpc' or 
+    'km/s/Mpc'
     """
-    return pars['H0']*EHubble(a, pars=pars) / c_kms
-
+    if units == '1/Mpc':
+        return pars['H0 (1/Mpc)'] * EHubble(a, pars=pars)
+    elif units == 'km/s/Mpc' or 'Km/s/Mpc':
+        return pars['H0 (km/s/Mpc)'] * EHubble(a, pars=pars)
+    else: 
+        raise('Invalid selection of units, please choose between "(1/Mpc)" and "(km/s/Mpc)"')
 
 def Omega_m(a, pars=cosmo_parameters):
     """
@@ -87,15 +94,15 @@ def phi(a, k, X, pars=cosmo_parameters):
     and wave-number. Perturbations must also be provided.
     """
     delta_m, theta_m, delta_de, theta_de = X
-    H = Hubble(a,pars=pars)
-    factor = -1.5* (a*pars['H0']/c_kms/k)**2
-    matter_term = pars['Omega_m0'] * a**(-3) * (delta_m + 3*a*H/k**2 * theta_m)
+    H = Hubble(a,pars)
+    factor = -1.5* (pars['H0 (1/Mpc)']/k)**2
+    matter_term = pars['Omega_m0'] * (delta_m/a + 3*H/k**2 * theta_m)
     if pars['w0'] == -1 and pars['wa'] == 0:
         de_term = 0
     else:
         print('not In LambdaCDM')
-        de_term = pars['Omega_de0'] * a **(-3*(1+eff_w_de(a, pars=pars))) \
-                    * (delta_de + 3*a*H/k**2 * theta_de*(1+w_de(a, pars=pars)))
+        de_term = pars['Omega_de0'] * a ** (-3*eff_w_de(a, pars)) \
+                    * (delta_de/a + 3*H/k**2 * (1+w_de(a, pars))* theta_de)
     return factor * (matter_term + de_term)
 
 
@@ -106,7 +113,7 @@ def dphida(a, k, X, pars=cosmo_parameters):
     must also be provided.
     """
     delta_m, theta_m, delta_de, theta_de = X
-    factor = -1.5*pars['H0']/(c_kms*EHubble(a, pars)*k**2)
+    factor = -1.5*pars['H0 (1/Mpc)']/(EHubble(a, pars)*k**2)
     matter_term = pars['Omega_m0'] * a**(-3)*theta_m
     if pars['w0'] == -1 and pars['wa'] == 0:
         de_term = 0
@@ -130,7 +137,7 @@ def rhs_pert(a, X, k, pars=cosmo_parameters):
     delta_m, theta_m, delta_de, theta_de = X
 
     phi_pot = phi(a, k, X, pars=pars)
-    dphi_potda = 0#dphida(a, k, X, pars=pars)
+    dphi_potda = dphida(a, k, X, pars=pars)
     if pars['w0'] == -1 and pars['wa'] == 0:
         output = [-theta_m/(a**2 * H) + 3*dphi_potda,
                   -theta_m/a + k**2 * phi_pot/(a**2 * H),

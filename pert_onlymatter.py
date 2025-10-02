@@ -10,17 +10,17 @@ from astropy import constants as const
 # Set cosmological parameters
 # ===========================
 
+c_kms = const.c.to('km/s').value
+
 cosmo_parameters = {
-    'H0': 67.,
+    'H0 (km/s/Mpc)': 67.,
+    'H0 (1/Mpc)': 67. / c_kms ,
     'h' : .67,
     'Omega_m0': 1.,
     'w0' : -1.,
-    'wa': -0.3,
+    'wa': 0.,
     'cs2': 1.
 }
-
-
-c_kms = const.c.to('km/s').value
 
 
 # ==================================
@@ -36,13 +36,20 @@ def EHubble(a, pars=cosmo_parameters):
     return np.sqrt(Omm*a**-3)
 
 
-def Hubble(a, pars=cosmo_parameters):
+def Hubble(a, pars=cosmo_parameters, units='1/Mpc'):
     """
-    Hubble parameter as a function of
-    the scale factor. Cosmological parameters must
-    be provided as a dictionary. Units are (1/Mpc).
+    Hubble parameter as a function of the scale factor.
+    Cosmological parameters must be provided as a dictionary.
+    You can choose units by setting the flag units to '1/Mpc' or 
+    'km/s/Mpc'
     """
-    return pars['H0']*EHubble(a, pars)/c_kms
+    if units == '1/Mpc':
+        return pars['H0 (1/Mpc)'] * EHubble(a, pars=pars)
+    elif units in ['km/s/Mpc', 'Km/s/Mpc']:
+        return pars['H0 (km/s/Mpc)'] * EHubble(a, pars=pars)
+    else: 
+        raise('Invalid selection of units, please choose between "(1/Mpc)" and "(km/s/Mpc)"')
+
 
 
 def Omega_m(a, pars=cosmo_parameters):
@@ -60,8 +67,8 @@ def phi(a, k, X, pars=cosmo_parameters):
     """
     delta_m, theta_m = X
     H = Hubble(a,pars=pars)
-    factor = -1.5 * (a*H/k)**2
-    matter_term = (delta_m + 3*a*H/k**2 * theta_m)
+    factor = -1.5 * (pars['H0 (1/Mpc)']/k)**2
+    matter_term = pars['Omega_m0']*(delta_m/a + 3*H/k**2 * theta_m)
     return factor * matter_term
 
 
@@ -72,9 +79,8 @@ def dphida(a, k, X, pars=cosmo_parameters):
     must also be provided.
     """
     delta_m, theta_m = X
-    H = Hubble(a,pars=pars)
-    factor = 1.5* H/k**2
-    matter_term = Omega_m(a, pars=pars)*theta_m
+    factor = 1.5 * pars['H0 (1/Mpc)'] / (EHubble(a, pars) * k**2)
+    matter_term = pars['Omega_m0']*theta_m*a**(-3)
     return factor*matter_term - phi(a, k, X, pars=pars)/a
 
 
