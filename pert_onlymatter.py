@@ -48,7 +48,7 @@ def Hubble(a, pars=cosmo_parameters, units='1/Mpc'):
     elif units in ['km/s/Mpc', 'Km/s/Mpc']:
         return pars['H0 (km/s/Mpc)'] * EHubble(a, pars=pars)
     else: 
-        raise('Invalid selection of units, please choose between "(1/Mpc)" and "(km/s/Mpc)"')
+        raise ValueError('Invalid selection of units, please choose "(1/Mpc)" or "(km/s/Mpc)"')
 
 
 
@@ -57,44 +57,53 @@ def Omega_m(a, pars=cosmo_parameters):
     Density parameter as a function of the scale factor.
     Cosmological parameters must be provided as a dictionary.
     """
-    return pars['Omega_m0'] * a**-3 / (EHubble(a, pars))**2
+    return pars['Omega_m0'] * a**(-3) / (EHubble(a, pars))**2
 
 
-def phi(a, k, X, pars=cosmo_parameters):
+def k2phi(a, k, X, pars=cosmo_parameters):
     """
     Gravitational potential as a function of the scale factor
     and wave-number. Perturbations must also be provided.
     """
     delta_m, theta_m = X
     H = Hubble(a,pars=pars)
-    factor = -1.5 * (pars['H0 (1/Mpc)']/k)**2
+    factor = -1.5 * (pars['H0 (1/Mpc)'])**2
     matter_term = pars['Omega_m0']*(delta_m/a + 3*H/k**2 * theta_m)
     return factor * matter_term
 
 
-def dphida(a, k, X, pars=cosmo_parameters):
+def k2dphida(a, k, X, pars=cosmo_parameters, method='num', delta=1e-6):
     """
     Derivative of gravitational potential wrt the scale factor,
     as a function of the scale factor and wave-number. Perturbations 
-    must also be provided.
+    must also be provided. The flag "method" allows for the user to 
+    choose how the derivative is considered, ie, numeric diff or analytic.
+    For the numeric diff, user must provide the array with
+    scale factors. 
     """
     delta_m, theta_m = X
-    factor = 1.5 * pars['H0 (1/Mpc)'] / (EHubble(a, pars) * k**2)
-    matter_term = pars['Omega_m0']*theta_m*a**(-3)
-    return factor*matter_term - phi(a, k, X, pars=pars)/a
+    if method == 'anl':
+        factor = 1.5 * pars['H0 (1/Mpc)'] / EHubble(a, pars)
+        matter_term = pars['Omega_m0'] * theta_m / (a**3)
+        return factor*matter_term - k2phi(a, k, X, pars)/a
+    elif method == 'num':
+        da = delta * a
+        phi_plus = k2phi(a + da, k, X, pars)
+        phi_minus = k2phi(a - da, k, X, pars)
+        return (phi_plus - phi_minus) / (2 * da)
 
 
-def rhs_pert(a, X, k, pars=cosmo_parameters):
+def rhs_pert(a, X, k, pars=cosmo_parameters, method='num'):
     """
     This function gives the rhs of the system of equations to be solved.
     """
     H = Hubble(a,pars)
     delta_m, theta_m = X
 
-    phi_pot = phi(a, k, X, pars=pars)
-    dphi_potda = dphida(a, k, X, pars=pars)
+    k2phi_pot = k2phi(a, k, X, pars=pars)
+    k2dphi_potda = k2dphida(a, k, X, pars=pars, method=method)
 
-    output = [-theta_m/(a**2 * H) + 3*dphi_potda,
-                -theta_m/a + k**2 * phi_pot/(a**2 * H)]
+    output = [-theta_m/(a**2 * H) + 3*k2dphi_potda/(k**2),
+                -theta_m/a + k2phi_pot/(a**2 * H)]
         
     return np.array(output)

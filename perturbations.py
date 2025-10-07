@@ -27,7 +27,6 @@ cosmo_parameters = {
 
 
 
-
 # ==================================
 # Define general cosmology functions.
 # ==================================
@@ -55,7 +54,7 @@ def EHubble(a, pars=cosmo_parameters):
     """
     Omm = pars['Omega_m0']
     Omde = pars['Omega_de0']
-    return np.sqrt(Omm*a**-3 + Omde*a**(-3*(1+eff_w_de(a, pars=pars))))
+    return np.sqrt(Omm*(a**-3) + Omde*(a**(-3*(1+eff_w_de(a, pars=pars)))))
 
 
 def Hubble(a, pars=cosmo_parameters, units='1/Mpc'):
@@ -77,7 +76,7 @@ def Omega_m(a, pars=cosmo_parameters):
     Density parameter as a function of the scale factor.
     Cosmological parameters must be provided as a dictionary.
     """
-    return pars['Omega_m0'] * a**(-3) / (EHubble(a, pars))**2
+    return pars['Omega_m0'] * a**(-3) / (EHubble(a, pars)**2)
 
 
 def Omega_de(a, pars=cosmo_parameters):
@@ -85,46 +84,45 @@ def Omega_de(a, pars=cosmo_parameters):
     Density parameter as a function of the scale factor.
     Cosmological parameters must be provided as a dictionary.
     """
-    return pars['Omega_de0'] * a **(-3*(1+eff_w_de(a, pars=pars))) / (EHubble(a, pars))**2
+    return pars['Omega_de0'] * a **(-3*(1+eff_w_de(a, pars=pars))) / (EHubble(a, pars)**2)
 
 
-def phi(a, k, X, pars=cosmo_parameters):
+def k2phi(a, k, X, pars=cosmo_parameters):
     """
     Gravitational potential as a function of the scale factor
     and wave-number. Perturbations must also be provided.
     """
     delta_m, theta_m, delta_de, theta_de = X
-    H = Hubble(a,pars)
-    factor = -1.5* (pars['H0 (1/Mpc)']/k)**2
+    H = Hubble(a, pars)
+    factor = -1.5 * (pars['H0 (1/Mpc)'])**2
     matter_term = pars['Omega_m0'] * (delta_m/a + 3*H/k**2 * theta_m)
     if pars['w0'] == -1 and pars['wa'] == 0:
         de_term = 0
     else:
-        print('not In LambdaCDM')
-        de_term = pars['Omega_de0'] * a ** (-3*eff_w_de(a, pars)) \
+        de_term = pars['Omega_de0'] * (a ** (-3*eff_w_de(a, pars)) )\
                     * (delta_de/a + 3*H/k**2 * (1+w_de(a, pars))* theta_de)
     return factor * (matter_term + de_term)
 
 
-def dphida(a, k, X, pars=cosmo_parameters):
+def k2dphida(a, k, X, pars=cosmo_parameters):
     """
     Derivative of gravitational potential wrt the scale factor,
     as a function of the scale factor and wave-number. Perturbations 
     must also be provided.
     """
     delta_m, theta_m, delta_de, theta_de = X
-    factor = -1.5*pars['H0 (1/Mpc)']/(EHubble(a, pars)*k**2)
-    matter_term = pars['Omega_m0'] * a**(-3)*theta_m
+    factor = -1.5*pars['H0 (1/Mpc)']/EHubble(a, pars)
+    matter_term = pars['Omega_m0'] * theta_m / (a**3)
     if pars['w0'] == -1 and pars['wa'] == 0:
         de_term = 0
     else:
         print('not In LambdaCDM')
         de_term = pars['Omega_de0'] * a **(-3*(1+eff_w_de(a, pars=pars)))\
                     * theta_de*(1+w_de(a, pars=pars))
-    return factor*(matter_term+de_term) - phi(a, k, X, pars=pars)/a
+    return factor*(matter_term+de_term) - k2phi(a, k, X, pars=pars)/a
 
 
-def rhs_pert(a, X, k, pars=cosmo_parameters):
+def rhs_pert(a, X, k, pars=cosmo_parameters,):
     """
     This function gives the rhs of the system of equations to be solved.
     """
@@ -136,19 +134,19 @@ def rhs_pert(a, X, k, pars=cosmo_parameters):
     H = Hubble(a,pars)
     delta_m, theta_m, delta_de, theta_de = X
 
-    phi_pot = phi(a, k, X, pars=pars)
-    dphi_potda = dphida(a, k, X, pars=pars)
+    k2phi_pot = k2phi(a, k, X, pars=pars)
+    k2dphi_potda = k2dphida(a, k, X, pars=pars)
     if pars['w0'] == -1 and pars['wa'] == 0:
-        output = [-theta_m/(a**2 * H) + 3*dphi_potda,
-                  -theta_m/a + k**2 * phi_pot/(a**2 * H),
+        output = [-theta_m/(a**2 * H) + 3*k2dphi_potda/(k**2),
+                  -theta_m/a + k2phi_pot/(a**2*H),
                   0,
                   0]
     else: 
         print('not In LambdaCDM')
-        output = [-theta_m/(a**2 * H) + 3*dphi_potda,
-                  -theta_m/a + k**2 * phi_pot/(a**2 * H),
-                  -(1+w)*(theta_de/(a**2 * H) - 3*dphi_potda) - 3/a*(cs2-w)*delta_de,
-                  -1/a*(1-3*w)*theta_de-w_de_prime/(1+w)*theta_de + (k**2)/(H*(a**2))*(cs2/(1+w)*delta_de + phi_pot)]
+        output = [-theta_m/(a**2 * H) + 3*k2dphi_potda/(k**2),
+                  -theta_m/a + k2phi_pot/(a**2 * H),
+                  -(1+w)*(theta_de/(a**2 * H) - 3*k2dphi_potda/(k**2)) - 3/a*(cs2-w)*delta_de,
+                  -1/a*(1-3*w)*theta_de-w_de_prime/(1+w)*theta_de + 1/(H*(a**2))*(cs2/(1+w)*delta_de*k**2 + k2phi_pot)]
         
     return np.array(output)
 
