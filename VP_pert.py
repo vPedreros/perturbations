@@ -20,12 +20,10 @@ cosmo_parameters = {
     'Omega_c0': 0.25,
     'Omega_b0': 0.05,
     'Omega_m0': 0.3,
-    'Omega_de0': 0.7,
     'w0' : -1.,
     'wa': 0.,
     'cs2': 1.
 }
-
 
 
 # ==================================
@@ -43,6 +41,8 @@ w_de = np.vectorize(w_de)
 def eff_w_de(a, pars=cosmo_parameters):
     if pars['wa'] == 0:
         return w_de(a, pars=pars)
+    elif np.isclose(a, 1.0): # Prevents division by zero
+        return pars['w0']
     else:
         return pars['w0'] + pars['wa'] *(1 - (a-1)/np.log(a))
 
@@ -54,7 +54,7 @@ def EHubble(a, pars=cosmo_parameters):
     be provided as a dictionary.
     """
     Omm = pars['Omega_m0']
-    Omde = pars['Omega_de0']
+    Omde = 1- Omm
     return np.sqrt(Omm*(a**-3) + Omde*(a**(-3*(1+eff_w_de(a, pars=pars)))))
 
 
@@ -67,10 +67,10 @@ def Hubble(a, pars=cosmo_parameters, units='1/Mpc'):
     """
     if units == '1/Mpc':
         return pars['H0 (1/Mpc)'] * EHubble(a, pars=pars)
-    elif units == 'km/s/Mpc' or 'Km/s/Mpc':
+    elif units.lower() == 'km/s/mpc':
         return pars['H0 (km/s/Mpc)'] * EHubble(a, pars=pars)
     else: 
-        raise('Invalid selection of units, please choose between "(1/Mpc)" and "(km/s/Mpc)"')
+        raise ValueError('Invalid selection of units, please choose between "(1/Mpc)" and "(km/s/Mpc)"')
 
 def Omega_m(a, pars=cosmo_parameters):
     """
@@ -85,7 +85,7 @@ def Omega_de(a, pars=cosmo_parameters):
     Density parameter as a function of the scale factor.
     Cosmological parameters must be provided as a dictionary.
     """
-    return pars['Omega_de0'] * a **(-3*(1+eff_w_de(a, pars=pars))) / (EHubble(a, pars)**2)
+    return (1-pars['Omega_m0']) * a **(-3*(1+eff_w_de(a, pars=pars))) / (EHubble(a, pars)**2)
 
 
 def rho_cr(a, pars=cosmo_parameters):
@@ -114,7 +114,7 @@ def rho_de(a, pars=cosmo_parameters):
     Cosmological parameters must be provided as a dictionary.
     """
     
-    return pars['Omega_de0'] * rho_cr(1, pars=pars) / a ** (3*(1 + eff_w_de(a, pars=pars)))
+    return (1-pars['Omega_m0']) * rho_cr(1, pars=pars) / a ** (3*(1 + eff_w_de(a, pars=pars)))
 
 
 def k2phi(a, k, X, pars=cosmo_parameters):
@@ -129,7 +129,7 @@ def k2phi(a, k, X, pars=cosmo_parameters):
     if pars['w0'] == -1 and pars['wa'] == 0:
         de_term = 0
     else:
-        de_term = pars['Omega_de0'] * (a ** (-3*eff_w_de(a, pars)) )\
+        de_term = (1-pars['Omega_m0']) * (a ** (-3*eff_w_de(a, pars)) )\
                     * (dde/a + 3*H/k**2 * vde)
     return factor * (matter_term + de_term)
 
@@ -146,7 +146,7 @@ def k2dphida(a, k, X, pars=cosmo_parameters):
     if pars['w0'] == -1 and pars['wa'] == 0:
         de_term = 0
     else:
-        de_term = pars['Omega_de0'] * a **(-3*(1+eff_w_de(a, pars))) * vde
+        de_term = (1-pars['Omega_m0']) * a **(-3*(1+eff_w_de(a, pars))) * vde
     return factor*(matter_term+de_term) - k2phi(a, k, X, pars)/a
 
 
@@ -172,7 +172,7 @@ def rhs_pert(a, X, k, pars=cosmo_parameters,):
     else:
         phi_prime = 1.5*pars['H0 (1/Mpc)']/(EHubble(a,pars)*k**2) * (
                         pars['Omega_m0'] * vm * a**(-3) + \
-                        pars['Omega_de0']*vde*a**(-3*(1+eff_w_de(a, pars))))\
+                        (1-pars['Omega_m0'])*vde*a**(-3*(1+eff_w_de(a, pars))))\
                         - phi/a
         output = [-vm/(a**2 * H) + 3*phi_prime, # delta_matter
                   -vm/a + phi*k**2/(a**2 * H), # v_matter

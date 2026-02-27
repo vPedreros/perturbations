@@ -100,4 +100,4 @@ if __name__ == "__main__":
     a_grid = np.linspace(acut, 0.995, 500)
     dm, vm, dl, vl, g = sol.sol(a_grid)
     # dm, vm, dl, vl, g están listos para analizar o graficar
-    # p.ej.: print(dm[-1], g[-1])
+    print(dm[-1], g[-1])
