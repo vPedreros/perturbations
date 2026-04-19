@@ -41,10 +41,15 @@ w_de = np.vectorize(w_de)
 def eff_w_de(a, pars=cosmo_parameters):
     if pars['wa'] == 0:
         return w_de(a, pars=pars)
-    elif np.isclose(a, 1.0): # Prevents division by zero
-        return pars['w0']
-    else:
-        return pars['w0'] + pars['wa'] *(1 - (a-1)/np.log(a))
+    a = np.asarray(a, dtype=float)
+    scalar = a.ndim == 0
+    a = np.atleast_1d(a)
+    result = np.where(
+        np.isclose(a, 1.0),
+        pars['w0'],
+        pars['w0'] + pars['wa'] * (1.0 - np.where(np.isclose(a, 1.0), 1.0, (a - 1.0) / np.log(np.where(a == 1.0, np.e, a))))
+    )
+    return float(result[0]) if scalar else result
 
 
 def EHubble(a, pars=cosmo_parameters):
@@ -137,10 +142,10 @@ def k2phi(a, k, X, pars=cosmo_parameters):
 def k2dphida(a, k, X, pars=cosmo_parameters):
     """
     Derivative of gravitational potential wrt the scale factor,
-    as a function of the scale factor and wave-number. Perturbations 
+    as a function of the scale factor and wave-number. Perturbations
     must also be provided.
     """
-    dm, vm, dde, vde = X
+    dm, vm, dde, vde = X[0], X[1], X[2], X[3]
     factor = 1.5*pars['H0 (1/Mpc)']/EHubble(a, pars)
     matter_term = pars['Omega_m0'] * vm / (a**3)
     if pars['w0'] == -1 and pars['wa'] == 0:
@@ -157,7 +162,6 @@ def rhs_pert(a, X, k, pars=cosmo_parameters,):
 
     w = w_de(a, pars=pars)
     cs2 = pars['cs2']
-    w_de_prime = -pars['wa']
 
     H = Hubble(a,pars)
     dm, vm, dde, vde, phi = X

@@ -37,11 +37,10 @@ def rhom(a):
 # ----- H(a) -----
 def hub(a, om):
     """
-    H(a) = H0 * sqrt( om * a^{-3} + (1 - omref) * wde_factor(a) )
-    Nota: el original usa om como argumento y (1 - omref) delante del término DE.
-    En el notebook, hub[a, om0ref] se pasa siempre como om = om0ref.
+    H(a) = H0 * sqrt( om * a^{-3} + omref * wde_factor(a) )
+    At a=1: hub(1, om0ref) = H0 * sqrt(om0ref + omref) = H0 * sqrt(1) = H0.
     """
-    return H0 * sqrt(om * (a ** -3.0) + (1.0 - omref) * wde_factor(a))
+    return H0 * sqrt(om * (a ** -3.0) + omref * wde_factor(a))
 # ----- Sistema de EDOs -----
 def rhs(a, y, k):
     """
@@ -64,9 +63,9 @@ def rhs(a, y, k):
     gprime = - coeff - source
     dmprime = - vm / (H * a**2) + 3.0 * gprime
     vmprime = - vm / a + (k**2) * g / (H * a**2)
-    dlprime = - vl / (H * a**2) + 3.0 * (1.0 + wl_a) * gprime - 3.0 * (cs - wl_a) * dl / a
+    dlprime = - vl / (H * a**2) + 3.0 * (1.0 + wl_a) * gprime - 3.0 * (cs**2 - wl_a) * dl / a
     vlprime = - (1.0 - 3.0 * wl_a) * vl / a \
-              + (k**2) * cs * dl / (H * a**2) \
+              + (k**2) * cs**2 * dl / (H * a**2) \
               + (1.0 + wl_a) * (k**2) * g / (H * a**2)
     return [dmprime, vmprime, dlprime, vlprime, gprime]
 def bothpre(k, a_max=0.995, rtol=1e-8, atol=1e-12):
