@@ -166,7 +166,7 @@ def rhs_pert(a, X, k, pars=cosmo_parameters,):
     H = Hubble(a,pars)
     dm, vm, dde, vde, phi = X
  
-    if pars['w0'] == -1 and pars['wa'] == 0:
+    if np.isclose(pars['w0'], -1) and np.isclose(pars['wa'], 0):
         phi_prime = 1.5*pars['H0 (1/Mpc)']/(EHubble(a,pars)*k**2) * pars['Omega_m0'] * vm / a**3 - phi/a
         output = [-vm/(a**2 * H) + 3*phi_prime,
                   -vm/a + phi*k**2/(a**2*H),
