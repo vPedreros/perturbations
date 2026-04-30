@@ -17,14 +17,13 @@ cosmo_parameters = {
     'H0 (km/s/Mpc)': 67.,
     'H0 (1/Mpc)': 67. / c_kms ,
     'h' : .67,
-    'Omega_c0': 0.25,
-    'Omega_b0': 0.05,
-    'Omega_m0': 0.3,
+    'Omega_c0': 0.27,
+    'Omega_b0': 0.049,
     'w0' : -1.,
     'wa': 0.,
     'cs2': 1.
 }
-
+cosmo_parameters['Omega_m0'] = cosmo_parameters['Omega_b0'] + cosmo_parameters['Omega_c0']
 
 # ==================================
 # Define general cosmology functions.
@@ -60,7 +59,18 @@ def EHubble(a, pars=cosmo_parameters):
     """
     Omm = pars['Omega_m0']
     Omde = 1- Omm
-    return np.sqrt(Omm*(a**-3) + Omde*(a**(-3*(1+eff_w_de(a, pars=pars)))))
+    return np.sqrt(Omm*(a**(-3)) + Omde*(a**(-3*(1+eff_w_de(a, pars=pars)))))
+
+def EHubble_rad(a, pars=cosmo_parameters):
+    """
+    Dimensionless Hubble parameter as a function of
+    the scale factor. Cosmological parameters must
+    be provided as a dictionary. This one considers radiation
+    """
+    Omm = pars['Omega_m0']
+    Omr = 9.319911e-5
+    Omde = 1- Omm - Omr
+    return np.sqrt( Omr * (a **(-4)) + Omm*(a**(-3)) + Omde*(a**(-3*(1+eff_w_de(a, pars=pars)))))
 
 
 def Hubble(a, pars=cosmo_parameters, units='1/Mpc'):
@@ -154,6 +164,20 @@ def k2dphida(a, k, X, pars=cosmo_parameters):
         de_term = (1-pars['Omega_m0']) * a **(-3*(1+eff_w_de(a, pars))) * vde
     return factor*(matter_term+de_term) - k2phi(a, k, X, pars)/a
 
+def k2dphida_conf(a, k, X, pars=cosmo_parameters):
+    """
+    Derivative of gravitational potential wrt conformal time,
+    Perturbations must be provided.
+    """
+    dm, vm, dde, vde = X[0], X[1], X[2], X[3]
+    factor = 1.5*pars['H0 (1/Mpc)']/EHubble(a, pars)
+    matter_term = pars['Omega_m0'] * vm / (a**3)
+    if pars['w0'] == -1 and pars['wa'] == 0:
+        de_term = 0
+    else:
+        de_term = (1-pars['Omega_m0']) * a **(-3*(1+eff_w_de(a, pars))) * vde
+    return factor*(matter_term+de_term) - k2phi(a, k, X, pars)/a
+
 
 def rhs_pert(a, X, k, pars=cosmo_parameters,):
     """
@@ -181,7 +205,7 @@ def rhs_pert(a, X, k, pars=cosmo_parameters,):
         output = [-vm/(a**2 * H) + 3*phi_prime, # delta_matter
                   -vm/a + phi*k**2/(a**2 * H), # v_matter
                   -vde/(a**2 * H) + 3*(1+w)*phi_prime - 3/a*(cs2-w)*dde, # delta_DE
-                  -(1-3*w)*vde/a + 1/(H*a**2)*(cs2*dde + phi*(1+w))*k**2, # v_DE
+                  -(1-3*cs2)*vde/a + 1/(H*a**2)*(cs2*dde + phi*(1+w))*k**2, # v_DE
                   phi_prime] #phi
 
     return np.array(output)
